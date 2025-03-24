@@ -38,7 +38,7 @@ function App() {
 
   const checkConnection = async () => {
     try {
-      const response = await axios.get('http://40.127.132.55:3001/check-connection');
+      const response = await axios.get('https://40.127.132.55:443/check-connection');
       setIsConnected(response.data.connected);
     } catch (error) {
       setIsConnected(false);
@@ -47,7 +47,7 @@ function App() {
 
   const handleOkClick = async () => {
     try {
-      const response = await axios.get('http://40.127.132.55:3001/users');
+      const response = await axios.get('https://40.127.132.55:443/users');
       setUsers(response.data);
     } catch (error) {
       console.error('Error fetching users:', error);
