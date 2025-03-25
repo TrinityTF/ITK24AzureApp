@@ -292,4 +292,13 @@ body {
     margin-left: 0;
     margin-bottom: 15px;
   }
+  .error-message {
+  color: #dc3545;
+  margin-top: 10px;
+  }
+
+  button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  }
 }

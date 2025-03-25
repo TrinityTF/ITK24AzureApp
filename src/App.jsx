@@ -9,8 +9,9 @@ function App() {
   const [filteredUsers, setFilteredUsers] = useState([]);
   const [expandedUser, setExpandedUser] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  // Azure Portal Resource Group Links
   const resourceGroupLinks = {
     'Allan': 'https://portal.azure.com/#@followercase.com/resource/subscriptions/531371bc-4ac6-4729-a4fe-8ded1d4fedce/resourceGroups/itk24-allanild/overview',
     'Agu': 'https://portal.azure.com/#@followercase.com/resource/subscriptions/531371bc-4ac6-4729-a4fe-8ded1d4fedce/resourceGroups/ITK24-AguToomasPihelgas/overview',
@@ -29,7 +30,7 @@ function App() {
 
   useEffect(() => {
     if (users.length > 0) {
-      const filtered = users.filter(user => 
+      const filtered = users.filter(user =>
         user.Name.toLowerCase().startsWith(searchTerm.toLowerCase())
       );
       setFilteredUsers(filtered);
@@ -45,21 +46,33 @@ function App() {
     }
   };
 
-  const handleOkClick = async () => {
+  const handleOkClick = async (retry = false) => {
+    setIsLoading(true);
+    setError(null);
     try {
       const response = await axios.get('https://40.127.132.55:443/users');
       setUsers(response.data);
     } catch (error) {
-      console.error('Error fetching users:', error);
+      if (!retry) {
+        // Wait 1 second and then retry once.
+        setTimeout(() => {
+          handleOkClick(true);
+        }, 1000);
+      } else {
+        setError('Failed to load users. Please try again.');
+        console.error('Error fetching users on retry:', error);
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const openAzurePortal = () => {
-    window.open('https://portal.azure.com/#@followercase.com/resource/subscriptions/531371bc-4ac6-4729-a4fe-8ded1d4fedce/resourceGroups/ITK24-AguToomasPihelgas/overview', '_blank');
+    window.open(resourceGroupLinks['Agu'], '_blank');
   };
 
   if (isConnected === null) return <div className="container">Checking connection...</div>;
-  
+
   if (!isConnected) {
     return (
       <div className="app-container">
@@ -79,7 +92,7 @@ function App() {
         </h1>
         {users.length > 0 && (
           <div className="search-container">
-            <Search size={20} style={{marginRight: 10, color: '#0078D4'}} />
+            <Search size={20} style={{ marginRight: 10, color: '#0078D4' }} />
             <input 
               type="text" 
               placeholder="Search users..." 
@@ -95,7 +108,19 @@ function App() {
         {users.length === 0 ? (
           <div className="connection-box">
             <h2>Connection Established</h2>
-            <button onClick={handleOkClick}>Load Users</button>
+            <button 
+              onClick={handleOkClick} 
+              disabled={isLoading}
+              className={isLoading ? 'loading' : ''}
+            >
+              {isLoading ? (
+                <>
+                  <span className="spinner"></span>
+                  Loading...
+                </>
+              ) : 'Load Users'}
+            </button>
+            {error && <p className="error-message">{error}</p>}
           </div>
         ) : (
           <>
@@ -109,7 +134,7 @@ function App() {
                   className="delete-services-button"
                   onClick={openAzurePortal}
                 >
-                  Open Azure Portal <ExternalLink size={16} style={{marginLeft: 8}} />
+                  Open Azure Portal <ExternalLink size={16} style={{ marginLeft: 8 }} />
                 </button>
               </div>
             </div>
@@ -133,7 +158,7 @@ function App() {
                           rel="noopener noreferrer" 
                           className="azure-portal-link"
                         >
-                          Open Resource Group <ExternalLink size={12} style={{marginLeft: 4}} />
+                          Open Resource Group <ExternalLink size={12} style={{ marginLeft: 4 }} />
                         </a>
                       )}
                     </div>
