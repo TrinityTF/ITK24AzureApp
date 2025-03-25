@@ -24,10 +24,19 @@ function App() {
     'Liisa': 'https://portal.azure.com/#@followercase.com/resource/subscriptions/531371bc-4ac6-4729-a4fe-8ded1d4fedce/resourceGroups/ITK24_LiisaManglus/overview'
   };
 
+  // Check the connection on initial render.
   useEffect(() => {
-    checkConnection();
+    (async () => {
+      try {
+        const response = await axios.get('https://40.127.132.55:443/check-connection');
+        setIsConnected(response.data.connected);
+      } catch (error) {
+        setIsConnected(false);
+      }
+    })();
   }, []);
 
+  // Filter users based on search term.
   useEffect(() => {
     if (users.length > 0) {
       const filtered = users.filter(user =>
@@ -37,31 +46,21 @@ function App() {
     }
   }, [searchTerm, users]);
 
-  const checkConnection = async () => {
-    try {
-      const response = await axios.get('https://40.127.132.55:443/check-connection');
-      setIsConnected(response.data.connected);
-    } catch (error) {
-      setIsConnected(false);
-    }
-  };
-
-  const handleOkClick = async (retry = false) => {
+  // Load users without an extra delay by making API calls concurrently.
+  const handleOkClick = async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await axios.get('https://40.127.132.55:443/users');
-      setUsers(response.data);
+      const [connResponse, usersResponse] = await Promise.all([
+        axios.get('https://40.127.132.55:443/check-connection'),
+        axios.get('https://40.127.132.55:443/users')
+      ]);
+      setIsConnected(connResponse.data.connected);
+      setUsers(usersResponse.data);
     } catch (error) {
-      if (!retry) {
-        // Wait 1 second and then retry once.
-        setTimeout(() => {
-          handleOkClick(true);
-        }, 1000);
-      } else {
-        setError('Failed to load users. Please try again.');
-        console.error('Error fetching users on retry:', error);
-      }
+      handleOkClick();
+      setError('Failed to load users. Please try again.');
+      console.error('Error fetching data:', error);
     } finally {
       setIsLoading(false);
     }
@@ -107,7 +106,7 @@ function App() {
       <div className="container">
         {users.length === 0 ? (
           <div className="connection-box">
-            <h2>Connection Established</h2>
+            <h2>🟢VM Active</h2>
             <button 
               onClick={handleOkClick} 
               disabled={isLoading}
@@ -116,7 +115,7 @@ function App() {
               {isLoading ? (
                 <>
                   <span className="spinner"></span>
-                  Loading...
+                  Waking Up MySQL...
                 </>
               ) : 'Load Users'}
             </button>
