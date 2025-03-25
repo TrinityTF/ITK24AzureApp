@@ -28,7 +28,7 @@ function App() {
   useEffect(() => {
     (async () => {
       try {
-        const response = await axios.get('https://40.127.132.55:443/check-connection');
+        const response = await axios.get('https://azure.api.agu.lol/check-connection', { withCredentials: true });
         setIsConnected(response.data.connected);
       } catch (error) {
         setIsConnected(false);
@@ -52,8 +52,8 @@ function App() {
     setError(null);
     try {
       const [connResponse, usersResponse] = await Promise.all([
-        axios.get('https://40.127.132.55:443/check-connection'),
-        axios.get('https://40.127.132.55:443/users')
+        axios.get('https://azure.api.agu.lol/check-connection'),
+        axios.get('https://azure.api.agu.lol/users')
       ]);
       setIsConnected(connResponse.data.connected);
       setUsers(usersResponse.data);
