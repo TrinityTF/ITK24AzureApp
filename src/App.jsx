@@ -28,7 +28,7 @@ function App() {
   useEffect(() => {
     (async () => {
       try {
-        const response = await axios.get('https://azure.api.agu.lol/check-connection', { withCredentials: true });
+        const response = await axios.get('https://agu.lol/.netlify/functions/checkConnection', { withCredentials: true });
         setIsConnected(response.data.connected);
       } catch (error) {
         setIsConnected(false);
@@ -52,13 +52,12 @@ function App() {
     setError(null);
     try {
       const [connResponse, usersResponse] = await Promise.all([
-        axios.get('https://azure.api.agu.lol/check-connection'),
-        axios.get('https://azure.api.agu.lol/users')
+        axios.get('https://agu.lol/.netlify/functions/checkConnection'),
+        axios.get('https://agu.lol/.netlify/functions/getUsers')
       ]);
       setIsConnected(connResponse.data.connected);
       setUsers(usersResponse.data);
     } catch (error) {
-      handleOkClick();
       setError('Failed to load users. Please try again.');
       console.error('Error fetching data:', error);
     } finally {
@@ -77,6 +76,9 @@ function App() {
       <div className="app-container">
         <div className="container">
           <h2>Azure VM is offline. Please start the VM to use this application.</h2>
+          <button onClick={handleOkClick} className="retry-button">
+            Retry
+          </button>
         </div>
       </div>
     );
@@ -106,7 +108,7 @@ function App() {
       <div className="container">
         {users.length === 0 ? (
           <div className="connection-box">
-            <h2>🟢VM Active</h2>
+            <h2>🟢 VM Active</h2>
             <button 
               onClick={handleOkClick} 
               disabled={isLoading}
