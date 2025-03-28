@@ -17,7 +17,7 @@ function App() {
 
   // --- Constants ---
 
-  const API_BASE_URL = 'https://azure-api-agu.azurewebsites.net'; // Use the FULL URL
+  const API_BASE_URL = 'https://azure.api.agu.lol'; // Use the FULL URL
 
   // Hardcoded links (keep as is or fetch dynamically if needed)
   const resourceGroupLinks = {
