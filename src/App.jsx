@@ -17,8 +17,7 @@ function App() {
 
   // --- Constants ---
 
-  // CRITICAL FIX for 404 Error: Use the RELATIVE path for SWA managed functions proxy
-  const API_BASE_URL = '/api';
+  const API_BASE_URL = 'https://azure-api-agu.azurewebsites.net'; // Use the FULL URL
 
   // Hardcoded links (keep as is or fetch dynamically if needed)
   const resourceGroupLinks = {
