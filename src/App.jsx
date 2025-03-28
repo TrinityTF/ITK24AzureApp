@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Server, Search, Trash2, ExternalLink, AlertTriangle, WifiOff, RotateCw } from 'lucide-react';
-import './App.css'; // Make sure your CSS file is imported
+import './App.css'; // Make sure your CSS file is imported and contains necessary styles
 
 function App() {
   // --- State Variables ---
@@ -12,11 +12,13 @@ function App() {
   const [filteredUsers, setFilteredUsers] = useState([]);
   const [expandedUser, setExpandedUser] = useState(null); // Tracks the currently expanded user's Name
   const [searchTerm, setSearchTerm] = useState('');
-  const [isLoading, setIsLoading] = useState(false); // Specifically for the 'Load Users' action
+  const [isLoading, setIsLoading] = useState(false); // Specifically for the 'Load Users' or 'Retry' action
   const [error, setError] = useState(null); // Stores error messages
 
   // --- Constants ---
-  const API_BASE_URL = '/api'; // Use the SWA managed function proxy path
+
+  // CRITICAL FIX for 404 Error: Use the RELATIVE path for SWA managed functions proxy
+  const API_BASE_URL = '/api';
 
   // Hardcoded links (keep as is or fetch dynamically if needed)
   const resourceGroupLinks = {
@@ -32,35 +34,52 @@ function App() {
     // Add other users if necessary
   };
 
+  // --- Helper Function ---
+  // Define the function to perform the API check and user load
+  const checkApiAndLoadUsers = async (loadUsers = false) => {
+    if (!loadUsers) {
+      setApiStatus('checking');
+    }
+    setIsLoading(true); // Indicate loading state for both check and load
+    setError(null); // Clear previous errors
+
+    try {
+      // Always check connection first (quick check)
+      const connResponse = await axios.get(`${API_BASE_URL}/check-connection`);
+      if (!connResponse.data.connected) {
+        throw new Error('API reported database connection issue.');
+      }
+      // If check passes, update status immediately
+      setApiStatus('connected');
+
+      // If loadUsers is true, proceed to fetch users
+      if (loadUsers) {
+        const usersResponse = await axios.get(`${API_BASE_URL}/users`);
+        setUsers(usersResponse.data || []); // Ensure response.data is an array
+      }
+      // No error occurred
+      setError(null); // Ensure error state is cleared on success
+
+    } catch (err) {
+      console.error('API Error:', err);
+      setApiStatus('error');
+      setError(err.response?.data?.error || err.message || 'Failed to connect or load data from API.');
+      setUsers([]); // Clear users on any error during check or load
+      setFilteredUsers([]);
+    } finally {
+      setIsLoading(false); // Stop loading indicator
+    }
+  };
+
+
   // --- Effects ---
 
   // 1. Check initial API connection status on component mount
   useEffect(() => {
-    let isMounted = true; // Prevent state updates on unmounted component
-    setApiStatus('checking');
-    setError(null);
-
-    axios.get(`${API_BASE_URL}/check-connection`)
-      .then(response => {
-        if (isMounted) {
-          if (response.data.connected) {
-            setApiStatus('connected');
-          } else {
-            setApiStatus('error');
-            setError('API reported database connection issue.');
-          }
-        }
-      })
-      .catch(err => {
-        if (isMounted) {
-          console.error('API connection check failed:', err);
-          setApiStatus('error');
-          setError(err.response?.data?.error || 'Failed to reach API. Ensure backend is deployed and running.');
-        }
-      });
-
-    return () => { isMounted = false; }; // Cleanup function
+    checkApiAndLoadUsers(false); // Check connection only on initial mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Empty dependency array ensures this runs only once on mount
+
 
   // 2. Filter users whenever the search term or the main user list changes
   useEffect(() => {
@@ -71,32 +90,15 @@ function App() {
       );
       setFilteredUsers(filtered);
     } else {
-      setFilteredUsers([]); // Clear filtered list if no users
+      setFilteredUsers([]); // Clear filtered list if no users or users cleared due to error
     }
   }, [searchTerm, users]);
 
   // --- Event Handlers ---
 
-  // Load users from the API
-  const handleLoadUsersClick = async () => {
-    setIsLoading(true);
-    setError(null); // Clear previous errors
-    setUsers([]); // Clear existing users before fetching new ones
-    setFilteredUsers([]);
-
-    try {
-      // Use the relative path provided by SWA - CORS is handled automatically
-      const response = await axios.get(`${API_BASE_URL}/users`);
-      setUsers(response.data || []); // Ensure response.data is an array
-      setApiStatus('connected'); // If loading succeeds, API is definitely connected
-    } catch (err) {
-      console.error('Error fetching users:', err);
-      setApiStatus('error'); // Update status on fetch error
-      setError(err.response?.data?.error || 'Failed to load users from API.');
-      setUsers([]); // Ensure users list is empty on error
-    } finally {
-      setIsLoading(false);
-    }
+  // Trigger loading users data (will also re-check connection implicitly)
+  const handleLoadUsersClick = () => {
+    checkApiAndLoadUsers(true); // Set loadUsers flag to true
   };
 
   // Toggle user details view
@@ -121,18 +123,20 @@ function App() {
     event.stopPropagation();
   };
 
+
   // --- Conditional Rendering Logic ---
 
   const renderContent = () => {
-    // State 1: Checking initial API status
-    if (apiStatus === 'checking') {
-      return (
-        <div className="container status-box">
-          <span className="spinner-large"></span>
-          <p>Checking API connection...</p>
-        </div>
-      );
+    // State 1: Checking initial API status or Reloading
+    if (isLoading && apiStatus === 'checking') {
+        return (
+            <div className="container status-box">
+            <span className="spinner-large"></span>
+            <p>Checking API connection...</p>
+            </div>
+        );
     }
+
 
     // State 2: API connection error (initial check or during load)
     if (apiStatus === 'error') {
@@ -141,6 +145,7 @@ function App() {
           <WifiOff size={48} color="#DC3545" />
           <h2>API / Database Unavailable</h2>
           <p className="error-message">{error || 'Could not connect to the backend or database.'}</p>
+          {/* Use handleLoadUsersClick which inherently retries connection check */}
           <button onClick={handleLoadUsersClick} disabled={isLoading} className="retry-button">
             {isLoading ? (
               <>
@@ -156,7 +161,7 @@ function App() {
       );
     }
 
-    // State 3: API Connected, but users not loaded yet
+    // State 3: API Connected, but users not loaded yet (or cleared after error)
     if (apiStatus === 'connected' && users.length === 0) {
       return (
         <div className="container status-box connection-box">
@@ -164,7 +169,7 @@ function App() {
           <h2>API Ready</h2>
           <p>Backend API is connected. Ready to load user data.</p>
           <button
-            onClick={handleLoadUsersClick}
+            onClick={handleLoadUsersClick} // Use the same handler to load users
             disabled={isLoading}
             className={`load-button ${isLoading ? 'loading' : ''}`}
           >
@@ -176,7 +181,8 @@ function App() {
               'Load Users'
             )}
           </button>
-          {error && <p className="error-message">{error}</p>}
+          {/* Display error here ONLY if a previous load attempt failed but connection is now okay */}
+          {error && !isLoading && <p className="error-message">{error}</p>}
         </div>
       );
     }
@@ -204,9 +210,10 @@ function App() {
 
           {/* User List */}
           <div className="user-list">
+            {/* Display filtered list */}
             {filteredUsers.map((user) => (
               <div
-                key={user.Name || user.id} // Use a unique key, Name might not be unique? Add 'id' if available
+                key={user.Name || user.id} // Use a unique key, Name might not be unique? Add 'id' if available from DB
                 className={`user-box ${expandedUser === user.Name ? 'expanded' : ''}`}
                 onClick={() => handleUserBoxClick(user.Name)} // Pass user's name
                 role="button" // Add role for accessibility
@@ -236,17 +243,21 @@ function App() {
                 )}
               </div>
             ))}
-            {/* Message if filter returns no results */}
-            {filteredUsers.length === 0 && searchTerm && (
+            {/* Message if filter returns no results but search term exists */}
+            {filteredUsers.length === 0 && searchTerm && users.length > 0 && (
               <p className="no-results-message">No users found matching "{searchTerm}".</p>
             )}
+             {/* Message if users array is empty after load attempt (e.g., DB table empty) */}
+             {users.length === 0 && !isLoading && apiStatus === 'connected' && (
+                 <p className="no-results-message">No user data found in the database.</p>
+             )}
           </div>
         </>
       );
     }
 
     // Fallback (should ideally not be reached if logic is correct)
-    return <div className="container">Unexpected state. Please refresh.</div>;
+    return <div className="container">Loading or unexpected state... Please wait or refresh.</div>;
   };
 
 
@@ -258,7 +269,7 @@ function App() {
           <Server size={32} style={{ marginRight: 12 }}/>
           Azure User Management [ITK24]
         </h1>
-        {/* Show search bar only when users are loaded */}
+        {/* Show search bar only when users are loaded successfully */}
         {users.length > 0 && apiStatus === 'connected' && (
           <div className="search-container">
             <Search size={20} className="search-icon" />
@@ -269,6 +280,7 @@ function App() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               aria-label="Search users by name"
+              disabled={isLoading} // Disable search while loading
             />
           </div>
         )}
@@ -280,7 +292,7 @@ function App() {
 
       <footer className="footer">
         {/* Add footer content if needed */}
-        <p>Azure Functions Backend via Static Web Apps</p>
+        <p>Status: {apiStatus} {isLoading ? '(Loading...)' : ''}</p>
       </footer>
     </div>
   );
