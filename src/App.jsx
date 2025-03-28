@@ -45,7 +45,7 @@ function App() {
 
     try {
       // Always check connection first (quick check)
-      const connResponse = await axios.get(`${API_BASE_URL}/check-connection`);
+      const connResponse = await axios.get(`${API_BASE_URL}/CheckConnection`);
       if (!connResponse.data.connected) {
         throw new Error('API reported database connection issue.');
       }
@@ -54,7 +54,7 @@ function App() {
 
       // If loadUsers is true, proceed to fetch users
       if (loadUsers) {
-        const usersResponse = await axios.get(`${API_BASE_URL}/users`);
+        const usersResponse = await axios.get(`${API_BASE_URL}/GetUsers`);
         setUsers(usersResponse.data || []); // Ensure response.data is an array
       }
       // No error occurred
