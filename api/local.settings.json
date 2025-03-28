@@ -1,0 +1,17 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "", 
+    "FUNCTIONS_WORKER_RUNTIME": "node",
+    "DB_HOST": "40.127.132.55", 
+    "DB_USER": "agu",
+    "DB_PASSWORD": "agu1234", 
+    "DB_DATABASE": "itk24",
+    "DB_PORT": "3306"
+    
+  },
+  "Host": { 
+    "CORS": "http://localhost:5173", 
+    "CORSCredentials": true
+  }
+}
